@@ -1,4 +1,7 @@
-﻿import os
+import argparse
+import os
+import sys
+
 import pandas as pd
 from openpyxl import Workbook
 from openpyxl.chart import BarChart, Reference
@@ -7,12 +10,50 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT_DIR = HERE
-OUT = os.path.join(OUT_DIR, "Sample_Payout_Reconciliation_Report.xlsx")
-os.makedirs(OUT_DIR, exist_ok=True)
 
-invoices = pd.read_csv(os.path.join(HERE, "data", "invoices.csv"), dtype={"po_number": str})
-payments = pd.read_csv(os.path.join(HERE, "data", "payments.csv"), dtype={"po_number": str})
+INVOICE_COLUMNS = ["invoice_id", "account_code", "po_number", "invoice_amount", "invoice_date"]
+PAYMENT_COLUMNS = ["payment_id", "account_code", "po_number", "payment_amount", "payment_date", "payment_ref"]
+
+
+def parse_args():
+    ap = argparse.ArgumentParser(
+        description="Build the payout reconciliation workbook from an invoice CSV and a payment CSV.")
+    ap.add_argument("--invoices", default=os.path.join(HERE, "data", "invoices.csv"),
+                    help="invoice CSV with columns: " + ", ".join(INVOICE_COLUMNS))
+    ap.add_argument("--payments", default=os.path.join(HERE, "data", "payments.csv"),
+                    help="payment CSV with columns: " + ", ".join(PAYMENT_COLUMNS))
+    ap.add_argument("--out", default=os.path.join(HERE, "Sample_Payout_Reconciliation_Report.xlsx"),
+                    help="Excel file to write")
+    return ap.parse_args()
+
+
+def read_csv(path, required, kind):
+    if not os.path.exists(path):
+        sys.exit(f"Error: {kind} file not found: {path}")
+    df = pd.read_csv(path, dtype={"po_number": str}, encoding="utf-8-sig")
+    df.columns = [str(c).strip() for c in df.columns]
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        sys.exit(f"Error: {os.path.basename(path)} is missing column(s): {', '.join(missing)}. "
+                 f"Columns found: {', '.join(df.columns)}. "
+                 f"Expected: {', '.join(required)}.")
+    df["po_number"] = df["po_number"].astype(str).str.strip()
+    for col in (required[3],):                              # the amount column must be numeric
+        bad = pd.to_numeric(df[col], errors="coerce").isna()
+        if bad.any():
+            sys.exit(f"Error: {os.path.basename(path)} has {int(bad.sum())} non-numeric value(s) in "
+                     f"'{col}' (first at data row {int(bad.idxmax()) + 1}).")
+    return df
+
+
+ARGS = parse_args()
+OUT = ARGS.out
+os.makedirs(os.path.dirname(os.path.abspath(OUT)), exist_ok=True)
+USING_SAMPLE = (os.path.abspath(ARGS.invoices) == os.path.join(HERE, "data", "invoices.csv")
+                and os.path.abspath(ARGS.payments) == os.path.join(HERE, "data", "payments.csv"))
+
+invoices = read_csv(ARGS.invoices, INVOICE_COLUMNS, "invoice")
+payments = read_csv(ARGS.payments, PAYMENT_COLUMNS, "payment")
 invoices["invoice_date"] = pd.to_datetime(invoices["invoice_date"]).dt.date
 payments["payment_date"] = pd.to_datetime(payments["payment_date"]).dt.date
 
@@ -112,8 +153,10 @@ s = wb.create_sheet("Summary", 0)
 s.sheet_view.showGridLines = False
 s["A1"] = "Marketplace Payout Reconciliation Report"
 s["A1"].font = f_title
-s["A2"] = ("SAMPLE DATA: synthetic invoices and payments generated for demonstration. "
-           "Not real client data.")
+s["A2"] = (
+    "SAMPLE DATA: synthetic invoices and payments generated for demonstration. "
+    "Not real client data." if USING_SAMPLE else
+    f"Built from {os.path.basename(ARGS.invoices)} and {os.path.basename(ARGS.payments)}.")
 s["A2"].font = f_note
 s["A4"] = "Match tolerance ($)"
 s["A4"].font = f_bold

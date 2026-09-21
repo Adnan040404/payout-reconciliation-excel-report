@@ -57,16 +57,28 @@ the Payments sheet and the invoice columns updates the whole workbook.
   into SQL or Python. I did that in
   [dropship-reconciliation-engine](https://github.com/Adnan040404/dropship-reconciliation-engine).
 
-## Rebuilding it
+## Using your own data
+
+The workbook is built from two CSV files:
+
+| File | Columns |
+|---|---|
+| Invoices | `invoice_id, account_code, po_number, invoice_amount, invoice_date` |
+| Payments | `payment_id, account_code, po_number, payment_amount, payment_date, payment_ref` |
 
 ```bash
 pip install -r requirements.txt
-python build_report.py
+python build_report.py --invoices my_invoices.csv --payments my_payments.csv --out my_report.xlsx
 ```
 
-`build_report.py` reads `data/invoices.csv` and `data/payments.csv` and writes
-`Sample_Payout_Reconciliation_Report.xlsx`. Excel calculates the formulas when
-you open the file.
+With no arguments it rebuilds the sample workbook from the files in `data/`. If a column
+is missing or an amount isn't a number, it stops and says which file, which column, and
+which row, rather than producing a report with quiet errors. Excel calculates the
+formulas when you open the file.
+
+```bash
+python -m pytest tests -q      # 7 tests
+```
 
 ## Contact
 
