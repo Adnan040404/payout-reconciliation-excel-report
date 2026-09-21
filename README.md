@@ -1,73 +1,74 @@
-# Payout Reconciliation Report (Excel + Python)
+# Payout Reconciliation Report
 
-An automated Excel report that matches invoices against payments and shows,
-at a glance, **what was paid, what is missing, and what does not add up**.
+I wanted a report that answers one question quickly: which invoices got paid,
+which were paid short, and which were never paid at all. This workbook does that
+with ordinary Excel formulas, so it keeps working when you paste in new data.
 
-> **Sample data.** Every invoice and payment in this project is synthetic,
-> generated for demonstration. No real client data is used.
+The data is made up. I generated it with a script, so nothing here comes from a
+real client or company.
 
-![Summary dashboard](screenshots/summary.png)
+![Summary sheet](screenshots/summary.png)
 
 ## The problem
 
-When a business is paid through marketplaces, retailers or payment
-processors, invoices and payments arrive separately and rarely line up
-cleanly. Money quietly leaks through the gaps:
+When money arrives through marketplaces, retailers or payment processors, the
+invoices and the payments come from different systems and rarely line up
+one-to-one. The usual trouble:
 
-| Issue | What it means |
+| Status | What happened |
 |---|---|
-| **Unpaid** | Invoice issued, no payment received |
-| **Short pay** | Paid less than the invoice amount |
-| **Overpaid** | Paid more than the invoice amount |
-| **Duplicate** | Same invoice paid two or more times |
-| **Unapplied** | A payment arrived that matches no invoice |
+| Unpaid | The invoice went out and no payment came back |
+| Short pay | The payment was smaller than the invoice |
+| Overpaid | The payment was bigger than the invoice |
+| Duplicate | The same invoice was paid two or more times |
+| Unapplied | A payment arrived that doesn't match any invoice |
 
-Finding these by hand across hundreds or thousands of rows is slow and
-error-prone.
+Checking this by eye across a few hundred rows is slow, and mistakes are easy to
+miss.
 
-## What this report delivers
+## What's in the workbook
 
-- **Summary sheet:** invoice counts and dollar amounts per status, key
-  findings (money owed, excess received, unapplied payments) and a chart.
-- **Reconciliation sheet:** every invoice matched to its payments with the
-  difference and a colour-coded status. Filter by status to see exactly which
+- **Summary** has the count and dollar amount for each status, a few headline
+  numbers (money owed, excess received, unapplied payments) and a chart.
+- **Reconciliation** lists every invoice next to what was actually paid, the
+  difference, and a colour-coded status. Filter the Status column to see which
   invoices to chase.
-- **Payments sheet:** every payment flagged *Applied* or *Unapplied*.
+- **Payments** lists every payment and marks it Applied or Unapplied.
 
 ![Reconciliation sheet](screenshots/reconciliation.png)
 
-## Built with live formulas, not pasted values
+## How the matching works
 
-The workbook is fully formula-driven (`SUMIFS`, `COUNTIFS`, `IF`,
-`COUNTIF`). Paste in a new month of data and every total, status and chart
-updates automatically. The match tolerance is a single editable input
-(`Summary!B4`).
+Each invoice is matched to payments on account plus PO number. Payments for the
+same PO are added together and compared with the invoice amount. If the two are
+within the tolerance (one cent by default, editable in `Summary!B4`) it's Paid.
+Otherwise it's Short Pay or Overpaid. If there were two or more payments that
+add up to exactly 2x, 3x or 4x the invoice, it's flagged as a Duplicate instead
+of an overpayment.
 
-## Reproduce it
+Everything is a formula (`SUMIFS`, `COUNTIFS`, `IF`), so pasting a new month into
+the Payments sheet and the invoice columns updates the whole workbook.
+
+## Limits
+
+- The duplicate rule is deliberately simple. On real data I would also look at
+  payment dates and remittance references before calling something a duplicate.
+- Formulas are fine for a few thousand rows. Beyond that I'd move the matching
+  into SQL or Python. I did that in
+  [dropship-reconciliation-engine](https://github.com/Adnan040404/dropship-reconciliation-engine).
+
+## Rebuilding it
 
 ```bash
 pip install -r requirements.txt
 python build_report.py
 ```
 
-`build_report.py` reads `data/invoices.csv` and `data/payments.csv` and
-writes `Sample_Payout_Reconciliation_Report.xlsx`. Open it in Excel and the
-formulas calculate on load.
+`build_report.py` reads `data/invoices.csv` and `data/payments.csv` and writes
+`Sample_Payout_Reconciliation_Report.xlsx`. Excel calculates the formulas when
+you open the file.
 
-## Tech
+## Contact
 
-Python (pandas, openpyxl) for generation, Excel formulas and conditional
-formatting for the report itself.
-
-## Related
-
-The same reconciliation logic, implemented as a Python engine and in SQL,
-is in
-[dropship-reconciliation-engine](https://github.com/Adnan040404/dropship-reconciliation-engine).
-
-## About
-
-I'm Muhammad Adnan, a data analyst who works with financial reconciliation
-and automation (Excel, Python, SQL, Power BI).
-[LinkedIn](https://linkedin.com/in/muhammad-adnan-740336293) ·
+Muhammad Adnan, [LinkedIn](https://linkedin.com/in/muhammad-adnan-740336293),
 adnandanish0404@gmail.com
