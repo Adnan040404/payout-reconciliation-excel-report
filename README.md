@@ -1,5 +1,7 @@
 # Payout Reconciliation Report
 
+![tests](https://github.com/Adnan040404/payout-reconciliation-excel-report/actions/workflows/tests.yml/badge.svg)
+
 I wanted a report that answers one question quickly: which invoices got paid,
 which were paid short, and which were never paid at all. This workbook does that
 with ordinary Excel formulas, so it keeps working when you paste in new data.
